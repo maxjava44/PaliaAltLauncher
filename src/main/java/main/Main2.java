@@ -37,6 +37,7 @@ public class Main2 {
 
 	private JFrame frame;
 	private static JTextPane lblNewLabel;
+	JButton btnNewButton;
 
 	/**
 	 * Launch the application.
@@ -70,13 +71,14 @@ public class Main2 {
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.getContentPane().setLayout(new BorderLayout(0, 0));
 		
-		JButton btnNewButton = new JButton("Update");
+		btnNewButton = new JButton("Update");
 		btnNewButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				new Thread(new Runnable() {
 					
 					@Override
 					public void run() {
+						btnNewButton.setEnabled(false);
 						// TODO Auto-generated method stub
 						try {
 							String manifestUrl = "https://update.palia.com/manifest/PatchManifest.json";
@@ -97,8 +99,10 @@ public class Main2 {
 							// TODO Auto-generated catch block
 							e1.printStackTrace();
 						}
+						btnNewButton.setEnabled(true);
 					}
 				}).start();
+				
 				
 			}
 		});
