@@ -54,28 +54,82 @@ public class Main {
 	}
 
 	public static boolean downloadWithVerify(File toSave, String url, String hash) throws Exception {
+		
+		boolean retry = true;
+		
+		while(retry) {
+			try {
+				OkHttpClient.Builder clientBuilder = new OkHttpClient.Builder();
+				clientBuilder.setCallTimeout$okhttp(Integer.MAX_VALUE);
+				clientBuilder.setConnectTimeout$okhttp(Integer.MAX_VALUE);
+				clientBuilder.setReadTimeout$okhttp(Integer.MAX_VALUE);
+				clientBuilder.setWriteTimeout$okhttp(Integer.MAX_VALUE);
+				OkHttpClient client = clientBuilder.build();
 
-		OkHttpClient.Builder clientBuilder = new OkHttpClient.Builder();
-		clientBuilder.setCallTimeout$okhttp(Integer.MAX_VALUE);
-		clientBuilder.setConnectTimeout$okhttp(Integer.MAX_VALUE);
-		clientBuilder.setReadTimeout$okhttp(Integer.MAX_VALUE);
-		clientBuilder.setWriteTimeout$okhttp(Integer.MAX_VALUE);
-		OkHttpClient client = clientBuilder.build();
+				Request sizeRequest = new Request.Builder().method("HEAD", null).url(url).build();
+				long existingSize = 0;
+				if (toSave.exists()) {
+					existingSize = FileUtils.sizeOf(toSave);
+				} else {
+					toSave.getParentFile().mkdirs();
+				}
+				long downloadSize = Long.parseLong(client.newCall(sizeRequest).execute().header("Content-Length"));
 
-		Request sizeRequest = new Request.Builder().method("HEAD", null).url(url).build();
-		long existingSize = 0;
-		if (toSave.exists()) {
-			existingSize = FileUtils.sizeOf(toSave);
-		} else {
-			toSave.getParentFile().mkdirs();
-		}
-		long downloadSize = Long.parseLong(client.newCall(sizeRequest).execute().header("Content-Length"));
+				FileOutputStream fileOutputStream;
 
-		FileOutputStream fileOutputStream;
+				if (existingSize == downloadSize) {
+					String actualHash;
+					if(!hash.equals("")) {
+						FileInputStream fileStream = new FileInputStream(toSave);
+						MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+						byte[] buffer = new byte[2048];
+						int read;
+						do {
+							read = fileStream.read(buffer);
+							if (read > 0) {
+								sha256.update(buffer, 0, read);
+							}
+						} while (read != -1);
+						actualHash = new String(Hex.encodeHex(sha256.digest()));
+						fileStream.close();
+					} else {
+						actualHash = "";
+					}
+					
+					if (actualHash.equals(hash)) {
+						return false;
+					} else {
+						existingSize = 0;
+						fileOutputStream = new FileOutputStream(toSave);
+					}
+				} else {
+					fileOutputStream = new FileOutputStream(toSave, true);
+				}
 
-		if (existingSize == downloadSize) {
-			String actualHash;
-			if(!hash.equals("")) {
+				Request downloadRequest = new Request.Builder().url(url)
+						.header("Range", "bytes=" + existingSize + "-" + downloadSize).build();
+
+				try (Response response = client.newCall(downloadRequest).execute()) {
+					try (InputStream responseStream = response.body().byteStream()) {
+						long bytesWritten = existingSize;
+						long lastPrint = existingSize;
+						byte[] buffer = new byte[2048];
+						int read;
+						do {
+							read = responseStream.read(buffer);
+							if (read > 0) {
+								fileOutputStream.write(buffer, 0, read);
+								bytesWritten += read;
+								if (bytesWritten - lastPrint > 1000000) {
+									System.out.println(url + " has downloaded " + ((bytesWritten * 1.0)/downloadSize) * 100.0 + "%" + " of " + downloadSize / 1000000 + " MBs");
+									lastPrint = bytesWritten;
+								}
+							}
+						} while (read != -1);
+						fileOutputStream.close();
+					}
+				}
+
 				FileInputStream fileStream = new FileInputStream(toSave);
 				MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
 				byte[] buffer = new byte[2048];
@@ -86,62 +140,19 @@ public class Main {
 						sha256.update(buffer, 0, read);
 					}
 				} while (read != -1);
-				actualHash = new String(Hex.encodeHex(sha256.digest()));
+				String actualHash = new String(Hex.encodeHex(sha256.digest()));
 				fileStream.close();
-			} else {
-				actualHash = "";
+				if (!actualHash.equals(hash) && !hash.equals("")) {
+					throw new Exception("Die Datei " + toSave.toString() + "konnte nicht heruntergeladen werden");
+				}
+				retry = false;
+			} catch (Exception e) {
+				System.out.println("Error! Retrying...");
 			}
 			
-			if (actualHash.equals(hash)) {
-				return false;
-			} else {
-				existingSize = 0;
-				fileOutputStream = new FileOutputStream(toSave);
-			}
-		} else {
-			fileOutputStream = new FileOutputStream(toSave, true);
-		}
-
-		Request downloadRequest = new Request.Builder().url(url)
-				.header("Range", "bytes=" + existingSize + "-" + downloadSize).build();
-
-		try (Response response = client.newCall(downloadRequest).execute()) {
-			try (InputStream responseStream = response.body().byteStream()) {
-				long bytesWritten = existingSize;
-				long lastPrint = existingSize;
-				byte[] buffer = new byte[2048];
-				int read;
-				do {
-					read = responseStream.read(buffer);
-					if (read > 0) {
-						fileOutputStream.write(buffer, 0, read);
-						bytesWritten += read;
-						if (bytesWritten - lastPrint > 1000000) {
-							System.out.println(url + " has downloaded " + ((bytesWritten * 1.0)/downloadSize) * 100.0 + "%" + " of " + downloadSize / 1000000 + " MBs");
-							lastPrint = bytesWritten;
-						}
-					}
-				} while (read != -1);
-				fileOutputStream.close();
-			}
-		}
-
-		FileInputStream fileStream = new FileInputStream(toSave);
-		MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-		byte[] buffer = new byte[2048];
-		int read;
-		do {
-			read = fileStream.read(buffer);
-			if (read > 0) {
-				sha256.update(buffer, 0, read);
-			}
-		} while (read != -1);
-		String actualHash = new String(Hex.encodeHex(sha256.digest()));
-		fileStream.close();
-		if (!actualHash.equals(hash) && !hash.equals("")) {
-			throw new Exception("Die Datei " + toSave.toString() + "konnte nicht heruntergeladen werden");
 		}
 		return true;
+		
 	}
 
 	public static void handleFile(String url, String hash) throws Exception {
