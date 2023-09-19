@@ -225,7 +225,7 @@ public class Main2 {
 	}
 	
 	public static void printToLabel(String text) {
-		lblNewLabel.setText(lblNewLabel.getText() + System.lineSeparator() + text);
+		lblNewLabel.setText(text + System.lineSeparator() + lblNewLabel.getText());
 	}
 
 	public static void handleFile(String url, String hash) throws Exception {
