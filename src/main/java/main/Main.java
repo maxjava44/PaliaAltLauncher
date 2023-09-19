@@ -60,10 +60,6 @@ public class Main {
 		while(retry) {
 			try {
 				OkHttpClient.Builder clientBuilder = new OkHttpClient.Builder();
-				clientBuilder.setCallTimeout$okhttp(Integer.MAX_VALUE);
-				clientBuilder.setConnectTimeout$okhttp(Integer.MAX_VALUE);
-				clientBuilder.setReadTimeout$okhttp(Integer.MAX_VALUE);
-				clientBuilder.setWriteTimeout$okhttp(Integer.MAX_VALUE);
 				OkHttpClient client = clientBuilder.build();
 
 				Request sizeRequest = new Request.Builder().method("HEAD", null).url(url).build();
