@@ -87,7 +87,7 @@ public class Main2 {
 
 							JSONObject manifestObj = new JSONObject(manifest);
 
-							for (String key : manifestObj.keySet()) {
+							for (String key : manifestObj.keySet().stream().sorted().collect(Collectors.toList())) {
 								JSONObject versionObj = manifestObj.getJSONObject(key);
 								for (Object fileObj : versionObj.getJSONArray("Files")) {
 									JSONObject fileJSONObj = (JSONObject) fileObj;
