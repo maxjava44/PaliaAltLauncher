@@ -99,7 +99,7 @@ public class Main2 {
 							// TODO Auto-generated catch block
 							e1.printStackTrace();
 						}
-						btnNewButton.setEnabled(true);
+						System.exit(0);
 					}
 				}).start();
 				
